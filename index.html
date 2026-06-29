@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Cut Atlas — beef &amp; pork across the languages of Europe</title>
+<meta name="description" content="An interactive butcher's chart with a different carcass map for each country: US, UK, French, German/Swiss, Italian and Spanish primal cuts, named in seven language variants.">
+<style>
+  :root{
+    --paper:#f3ece0;--paper-2:#ece2d2;--ink:#2b2622;--ink-soft:#6b6055;--faint:#a89a87;
+    --line:#d8cab2;--oxblood:#8c2f24;--oxblood-2:#a93b2c;--tallow:#e6b34d;--bone:#fbf7ef;
+    --display:"Helvetica Neue",Arial,sans-serif;--body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:"SFMono-Regular",ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--paper);background-image:radial-gradient(circle at 15% 10%,rgba(255,255,255,.5),transparent 40%);color:var(--ink);font-family:var(--body);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+  header.top{padding:30px 0 14px;border-bottom:3px double var(--ink)}
+  .eyebrow{font-family:var(--mono);font-size:.7rem;letter-spacing:.28em;text-transform:uppercase;color:var(--oxblood);font-weight:700}
+  h1.title{font-family:var(--display);font-weight:800;font-size:clamp(2.4rem,7vw,4.6rem);letter-spacing:-.03em;line-height:.92;text-transform:uppercase;margin:2px 0 6px}
+  h1.title em{font-style:normal;color:var(--oxblood)}
+  .sub{max-width:64ch;color:var(--ink-soft);font-size:1rem}
+  .meta-row{margin-top:14px;display:flex;gap:22px;flex-wrap:wrap;font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+  .meta-row b{color:var(--ink);font-family:var(--display);font-size:1rem;letter-spacing:0}
+
+  .controls{position:sticky;top:0;z-index:40;background:linear-gradient(var(--paper) 78%,transparent);padding:14px 0 12px}
+  .controls-inner{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .seg{display:inline-flex;border:2px solid var(--ink);border-radius:2px;overflow:hidden}
+  .seg button{font-family:var(--display);font-weight:700;font-size:.9rem;letter-spacing:.04em;text-transform:uppercase;background:transparent;color:var(--ink);border:none;padding:9px 18px;cursor:pointer}
+  .seg button.on{background:var(--ink);color:var(--paper)}
+  .search{flex:1;min-width:200px;position:relative}
+  .search input{width:100%;background:var(--bone);border:2px solid var(--ink);border-radius:2px;color:var(--ink);font-size:.95rem;padding:9px 14px 9px 40px;font-family:var(--body)}
+  .search input::placeholder{color:var(--faint)}
+  .search input:focus{outline:none;border-color:var(--oxblood)}
+  .search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:var(--faint)}
+  .langsel{background:var(--bone);border:2px solid var(--ink);border-radius:2px;color:var(--ink);padding:9px 12px;font-size:.9rem;font-family:var(--display);font-weight:600;text-transform:uppercase;letter-spacing:.03em;cursor:pointer}
+  .langsel:focus{outline:none;border-color:var(--oxblood)}
+
+  .stage{display:grid;grid-template-columns:1.15fr .85fr;gap:30px;padding:18px 0 60px;align-items:start}
+  @media(max-width:840px){.stage{grid-template-columns:1fr}}
+  .mapcard{position:sticky;top:74px}
+  .map-frame{background:var(--bone);border:2px solid var(--ink);border-radius:3px;padding:14px;box-shadow:6px 6px 0 rgba(43,38,34,.12)}
+  .map-frame svg{width:100%;height:auto;display:block}
+  .scheme-flag{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:700;text-transform:uppercase;font-size:.82rem;letter-spacing:.04em;margin-bottom:8px;color:var(--ink)}
+  .scheme-flag .fl{font-size:1.1rem}
+  .map-cap{font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-top:10px;text-align:center}
+  .region{fill:var(--paper-2);stroke:var(--ink);stroke-width:1.3;cursor:pointer;transition:fill .14s}
+  .region:hover{fill:var(--tallow)}
+  .region.active{fill:var(--oxblood)}
+  .region.dim{opacity:.4}
+  .rlabel{font-family:var(--display);font-weight:700;font-size:9px;fill:var(--ink);pointer-events:none;text-anchor:middle;text-transform:uppercase;letter-spacing:.01em}
+  .rlabel.light{fill:var(--bone)}
+  .outline{fill:none;stroke:var(--ink);stroke-width:2.2}
+  .feature{fill:none;stroke:var(--ink-soft);stroke-width:1.1;opacity:.55}
+
+  .listhead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid var(--ink);padding-bottom:6px;margin-bottom:4px}
+  .listhead h2{font-family:var(--display);font-weight:800;text-transform:uppercase;font-size:1.1rem;letter-spacing:-.01em}
+  .listhead .count{font-family:var(--mono);font-size:.7rem;color:var(--faint);letter-spacing:.08em}
+  .clearfilter{background:none;border:none;color:var(--oxblood);font-family:var(--mono);font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;text-decoration:underline}
+  ul.cuts{list-style:none}
+  li.cut{border-bottom:1px solid var(--line);padding:12px 4px;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:baseline}
+  li.cut:hover{background:var(--paper-2)}
+  li.cut.sel{background:var(--oxblood);color:var(--bone)}
+  li.cut.sel .primary-name,li.cut.sel .alt-name{color:var(--bone)}
+  li.cut.sel .region-tag{background:var(--bone);color:var(--oxblood)}
+  .primary-name{font-family:var(--display);font-weight:700;font-size:1.04rem}
+  .alt-name{color:var(--ink-soft);font-size:.85rem}
+  li.cut.sel .alt-name{color:#f1d9d4}
+  .region-tag{font-family:var(--mono);font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;background:var(--paper-2);color:var(--ink-soft);padding:3px 7px;border-radius:2px;white-space:nowrap;align-self:center}
+  mark{background:var(--tallow);color:var(--ink);padding:0 1px}
+  .empty{padding:40px 8px;color:var(--ink-soft);font-size:.95rem}
+  .empty b{font-family:var(--display);display:block;color:var(--ink);font-size:1.1rem;margin-bottom:4px}
+
+  .scrim{position:fixed;inset:0;background:rgba(20,16,12,.55);z-index:60;display:none;align-items:center;justify-content:center;padding:24px 16px}
+  .scrim.open{display:flex}
+  .sheet{background:var(--bone);border:2px solid var(--ink);border-radius:3px;max-width:560px;width:100%;max-height:88vh;overflow:auto;box-shadow:8px 8px 0 rgba(43,38,34,.2)}
+  .sheet-top{background:var(--ink);color:var(--paper);padding:18px 22px;position:relative}
+  .sheet-top .rtag{font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--tallow)}
+  .sheet-top h3{font-family:var(--display);font-weight:800;font-size:1.5rem;text-transform:uppercase;letter-spacing:-.01em;margin-top:3px}
+  .closebtn{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--paper);font-size:1.6rem;line-height:1;cursor:pointer}
+  .closebtn:hover{color:var(--tallow)}
+  .note{padding:16px 22px;border-bottom:1px solid var(--line);color:var(--ink-soft);font-size:.95rem}
+  .langtable{padding:8px 14px 18px}
+  .langrow{display:grid;grid-template-columns:140px 1fr;gap:10px;padding:9px 8px;border-bottom:1px solid var(--line)}
+  .langrow:last-child{border:none}
+  .langrow.hi{background:#f6ead0}
+  .langrow .l{font-family:var(--mono);font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;color:var(--oxblood);align-self:center;font-weight:700}
+  .langrow .v{font-family:var(--display);font-weight:600;font-size:1.02rem}
+  .flag{display:inline-block;width:18px;text-align:center;margin-right:6px}
+
+  footer{border-top:3px double var(--ink);padding:24px 0 60px;color:var(--ink-soft);font-size:.83rem}
+  footer p{margin-bottom:8px;max-width:82ch}
+  footer a{color:var(--oxblood)}
+  .tip{position:fixed;background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:.7rem;letter-spacing:.04em;padding:5px 9px;border-radius:3px;pointer-events:none;z-index:80;display:none;white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">Beef &amp; Pork · a different map for every country</div>
+    <h1 class="title">The Cut <em>Atlas</em></h1>
+    <p class="sub">Every country breaks an animal down its own way — France draws nearly thirty cuts where America draws eight, and the Swiss split the hip into pieces with no English name at all. Pick a language and the whole carcass map redraws to that country's scheme. Tap a part of the animal, or any cut below, to see it across Europe.</p>
+    <div class="meta-row">
+      <span><b id="m-cuts">—</b> cuts</span>
+      <span><b>6</b> carcass maps</span>
+      <span><b>7</b> language variants</span>
+      <span><b>2</b> animals</span>
+    </div>
+  </header>
+
+  <div class="controls">
+    <div class="controls-inner">
+      <div class="seg" id="animalseg">
+        <button data-animal="beef" class="on">Beef</button>
+        <button data-animal="pork">Pork</button>
+      </div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="q" type="search" placeholder="Search a cut in any language — “entrecôte”, “solomillo”, “Nierstück”…" autocomplete="off">
+      </div>
+      <select class="langsel" id="lang" aria-label="Choose country map and primary names"></select>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="mapcard">
+      <div class="map-frame">
+        <div class="scheme-flag" id="schemeflag"></div>
+        <div id="mapwrap"></div>
+        <div class="map-cap" id="mapcap"></div>
+      </div>
+    </div>
+    <div class="listcol">
+      <div class="listhead">
+        <h2 id="listtitle">All beef cuts</h2>
+        <span class="count" id="listcount"></span>
+      </div>
+      <div id="filterbar" style="display:none;padding:8px 0">
+        <button class="clearfilter" id="clearfilter">× clear region filter</button>
+      </div>
+      <ul class="cuts" id="cuts"></ul>
+      <div class="empty" id="empty" style="display:none"><b>Nothing on the block.</b>Try a shorter term, or a name in another language.</div>
+    </div>
+  </div>
+</div>
+
+<footer class="wrap">
+  <p><b style="font-family:var(--display);color:var(--ink)">How to read the maps.</b> Each map shows how that country actually divides the carcass — the boundaries differ, not just the labels. Switch the language selector and watch the lines move. A cut in the list is anchored to where its muscle sits, so it stays put while the map around it redraws; the region tag tells you which primal it falls under in the current scheme.</p>
+  <p><b style="font-family:var(--display);color:var(--ink)">On accuracy.</b> Cuts don't translate one-to-one, and these maps are stylised schematics, not anatomical drawings — close enough to find your way at the counter, not a butchery manual. Where a name is the closest regional equivalent rather than an identical cut, it's marked “≈”.</p>
+  <p>Sources: Greater Omaha beef cut chart; <a href="https://www.helvetickitchen.com/curiosities/2017/8/19/swiss-cuts-of-beef" target="_blank" rel="noopener">Helvetic Kitchen</a> (Swiss); <a href="https://gjhonour.com/blogs/family-butcher/translation-of-american-to-british-beef-cuts" target="_blank" rel="noopener">G. J. Honour</a> (UK↔US); <a href="https://www.restaurant-in-pattaya.com/different-parts-and-cuts-of-beef-in-different-languages" target="_blank" rel="noopener">Casa Pascal</a>; Wikipedia, Cut of beef &amp; Cut of pork (per-country primal schemes).</p>
+</footer>
+
+<div class="scrim" id="scrim" role="dialog" aria-modal="true"><div class="sheet" id="sheet"></div></div>
+<div class="tip" id="tip"></div>
+
+<script>
+const LANGS=[
+  {k:"en",label:"British English",flag:"🇬🇧",scheme:"uk"},
+  {k:"us",label:"American English",flag:"🇺🇸",scheme:"us"},
+  {k:"fr",label:"French",flag:"🇫🇷",scheme:"fr"},
+  {k:"de",label:"German",flag:"🇩🇪",scheme:"dech"},
+  {k:"ch",label:"Swiss German",flag:"🇨🇭",scheme:"dech"},
+  {k:"it",label:"Italian",flag:"🇮🇹",scheme:"it"},
+  {k:"es",label:"Spanish",flag:"🇪🇸",scheme:"es"}
+];
+const SCHEME_NAME={us:"American",uk:"British",fr:"French",dech:"German / Swiss",it:"Italian",es:"Spanish"};
+const SCHEME_FLAG={us:"🇺🇸",uk:"🇬🇧",fr:"🇫🇷",dech:"🇨🇭",it:"🇮🇹",es:"🇪🇸"};
+const DATA={"beef":[{"id":"b_neck","region":"chuck","names":{"en":"Neck / Clod","us":"Chuck","fr":"Collier","de":"Hals","ch":"Hals","it":"Collo","es":"Pescuezo / Aguja"},"note":"Lean, well-worked muscle. Stewing, braising, mince. In Switzerland the neck is also ground for charcuterie.","zone":"neck"},{"id":"b_chuck","region":"chuck","names":{"en":"Chuck / Blade","us":"Chuck (Blade)","fr":"Paleron / Macreuse","de":"Schulter / Bug","ch":"Schulter (Schulterfilet, Schulterspitz, Dicke Schulter)","it":"Reale / Spalla","es":"Espaldilla / Aguja"},"note":"Shoulder. Source of flat-iron and chuck steaks; otherwise braise or mince. The Swiss split it into Schulterfilet, Schulterspitz and Dicke Schulter.","zone":"shoulder"},{"id":"b_rib","region":"rib","names":{"en":"Fore Rib","us":"Rib / Ribeye","fr":"Côte / Entrecôte","de":"Hohe Rippe / Hochrippe","ch":"Hohrücken (Hohrückendeckel)","it":"Costata / Entrecôte","es":"Lomo alto / Chuleta"},"note":"The rib roast and ribeye / côte de boeuf come from here — prized for marbling. Roast or grill.","zone":"rib"},{"id":"b_ribeye_roll","region":"rib","names":{"en":"Rib-eye Roll","us":"Ribeye Roll","fr":"Faux-filet de côte","de":"Rib-Eye / Hochrippenkern","ch":"Hohrücken-Kern","it":"Cuore di costata","es":"Ojo de lomo alto"},"note":"Boneless eye of the rib. The classic ribeye steak.","zone":"rib"},{"id":"b_striploin","region":"loin","names":{"en":"Sirloin","us":"Strip Loin / New York Strip","fr":"Faux-filet / Contre-filet","de":"Roastbeef / Zwischenrippenstück","ch":"Nierstück (Entrecôte)","it":"Controfiletto / Lombata","es":"Lomo bajo / Entrecot"},"note":"Tender back muscle. Strip / sirloin steaks, roast beef. The UK 'sirloin' overlaps the US strip loin.","zone":"shortloin"},{"id":"b_tenderloin","region":"loin","names":{"en":"Fillet","us":"Tenderloin","fr":"Filet","de":"Filet / Lende","ch":"Filet","it":"Filetto","es":"Solomillo"},"note":"The tenderest cut. Filet mignon, Chateaubriand, tournedos, beef Wellington.","zone":"tenderloin"},{"id":"b_topbutt","region":"loin","names":{"en":"Rump","us":"Top Butt / Top Sirloin","fr":"Rumsteak","de":"Hüfte / Hüftsteak","ch":"Huft (Schmale Huft)","it":"Scamone","es":"Cadera / Tapilla"},"note":"Firm but flavourful. Rump steaks, roasts, fondue.","zone":"sirloin"},{"id":"b_topcap","region":"loin","names":{"en":"Rump Cap","us":"Top Butt Cap / Picanha","fr":"Aiguillette baronne","de":"Tafelspitz (Hüftdeckel)","ch":"Tafelspitz / Huftdeckel","it":"Picanha / Codone","es":"Tapilla / Picaña"},"note":"The picanha. Brazilian-style grilling; the Swiss/Viennese boil it as Tafelspitz.","zone":"sirloin"},{"id":"b_tritip","region":"loin","names":{"en":"Tri-tip / Rump Tail","us":"Tri-Tip","fr":"Aiguillette de rumsteck","de":"Bürgermeisterstück / Hüftspitze","ch":"Hüftspitze","it":"Punta di scamone","es":"Colita de cuadril"},"note":"Triangular hip-tip muscle. Roast or grill whole, slice across the grain.","zone":"sirloin"},{"id":"b_knuckle","region":"round","names":{"en":"Thick Flank / Knuckle","us":"Knuckle / Sirloin Tip","fr":"Tranche grasse","de":"Kugel / Nuss","ch":"Eckstück / Nuss (Stotzen)","it":"Fesa / Noce","es":"Babilla / Contra"},"note":"Lean leg muscle. Schnitzel, fondue, slow roasts, Geschnetzeltes.","zone":"round"},{"id":"b_topround","region":"round","names":{"en":"Topside","us":"Top Round / Inside Round","fr":"Tende de tranche","de":"Oberschale","ch":"Unterspälte / Eckstück","it":"Fesa interna / Sottofesa","es":"Tapa / Contra"},"note":"Large lean joint. Roasting and braising; thin slices for Saftplätzli or Sauerbraten.","zone":"round"},{"id":"b_silverside","region":"round","names":{"en":"Silverside / Outside Round","us":"Bottom Round / Outside Round","fr":"Gîte à la noix / Semelle","de":"Unterschale","ch":"Runder Mocken / Flache Nuss","it":"Sottofesa / Girello","es":"Contra / Redondo"},"note":"Lean and firm. Pot roasts, corned/salt beef, Sauerbraten (Suure Mocke).","zone":"round"},{"id":"b_eyeround","region":"round","names":{"en":"Eye of Round","us":"Eye Round","fr":"Rond de gîte","de":"Schwanzrolle / Semerrolle","ch":"Runde Nuss","it":"Girello","es":"Redondo / Tapa plana"},"note":"Very lean cylindrical muscle. Thin roasts, dried beef (Bündnerfleisch / Bresaola).","zone":"round"},{"id":"b_shank","region":"shank","names":{"en":"Shin / Leg","us":"Shank","fr":"Jarret","de":"Beinscheibe / Hesse","ch":"Schenkel / Hesse","it":"Ossobuco / Geretto","es":"Morcillo / Jarrete"},"note":"Gelatinous, full of connective tissue. Ossobuco, stock, long braises, processed meats.","zone":"shank"},{"id":"b_brisket","region":"brisket","names":{"en":"Brisket","us":"Brisket","fr":"Poitrine","de":"Brust","ch":"Brust","it":"Punta di petto","es":"Pecho / Falda"},"note":"Front chest. Brisket, pho, corned beef, pastrami; in Switzerland boiled as Siedfleisch.","zone":"brisket"},{"id":"b_plate","region":"plate","names":{"en":"Thin Rib / Plate","us":"Short Plate","fr":"Plat de côtes","de":"Querrippe / Dünnung","ch":"Federstück","it":"Pancia / Biancostato","es":"Costillar / Falda"},"note":"Belly behind the brisket. Short ribs, boiling beef; the Swiss Federstück for Siedfleischsalat.","zone":"foreplate"},{"id":"b_shortrib","region":"plate","names":{"en":"Short Ribs","us":"Short Ribs / Back Ribs","fr":"Côtes courtes / Plat de côtes","de":"Rippchen / Querrippe","ch":"Rippli","it":"Costine / Costole","es":"Costilla / Asado de tira"},"note":"Meaty rib sections. Braise low and slow, or Korean/Argentine-style across the bone.","zone":"foreplate"},{"id":"b_flank","region":"flank","names":{"en":"Flank / Skirt","us":"Flank Steak","fr":"Bavette de flanchet","de":"Flanke / Bauchlappen","ch":"Lempen","it":"Bavetta / Pancia","es":"Vacío / Falda"},"note":"Loose-grained belly muscle. Flank steak, fast and hot, sliced across the grain; otherwise mince.","zone":"flank"},{"id":"b_skirt","region":"plate","names":{"en":"Skirt Steak","us":"Skirt Steak","fr":"Onglet / Hampe","de":"Kronfleisch / Saumfleisch","ch":"Leistenfleisch (Onglet)","it":"Lombatello / Diaframma","es":"Entraña"},"note":"Diaphragm muscle. The 'butcher's steak'; hanger (onglet) and skirt. Marinate, sear fast.","zone":"foreplate"},{"id":"b_clod","region":"chuck","names":{"en":"Shoulder Clod","us":"Shoulder Clod","fr":"Macreuse à pot-au-feu","de":"Bug / Schaufelstück","ch":"Dicke Schulter","it":"Fesone di spalla","es":"Centro de espaldilla"},"note":"Large shoulder muscle. Braising, pot-au-feu, mince, charcuterie.","zone":"shoulder"}],"pork":[{"id":"p_head","region":"head","names":{"en":"Head / Cheek","us":"Head / Jowl","fr":"Tête / Joue","de":"Kopf / Backe","ch":"Kopf / Bäggli","it":"Testa / Guanciale","es":"Cabeza / Carrillada"},"note":"Cheeks (guanciale in Italy) cure beautifully; head for brawn and stock.","zone":"head"},{"id":"p_neck","region":"p_shoulder","names":{"en":"Spare Rib / Collar","us":"Blade Shoulder","fr":"Échine","de":"Nacken / Kamm","ch":"Hals (Schweinshals)","it":"Coppa / Capocollo","es":"Aguja / Cabecero"},"note":"Marbled upper neck. Collar steaks, roasts, pulled pork; cured as coppa/capocollo.","zone":"neckcollar"},{"id":"p_shoulder","region":"p_shoulder","names":{"en":"Shoulder / Hand","us":"Arm Shoulder / Picnic","fr":"Épaule / Palette","de":"Schulter / Bug","ch":"Schulter (Dicke Schulter, Schulterfilet)","it":"Spalla","es":"Paleta / Lacón"},"note":"Lower shoulder. Slow roasts, pulled pork, stews; cured as picnic ham / Vorderschinken / Schüfeli.","zone":"shoulder"},{"id":"p_loin","region":"p_loin","names":{"en":"Loin","us":"Loin","fr":"Longe / Carré","de":"Lende / Rücken","ch":"Nierstück","it":"Lombo / Lonza","es":"Lomo"},"note":"Lean back muscle. Roasts, chops, schnitzel; cured as back bacon / lonza.","zone":"loin"},{"id":"p_tenderloin","region":"p_loin","names":{"en":"Tenderloin / Fillet","us":"Tenderloin","fr":"Filet mignon","de":"Filet / Lende","ch":"Schweinsfilet","it":"Filetto","es":"Solomillo"},"note":"The tenderest pork muscle, lean. Roast whole or in medallions; cook briefly.","zone":"tenderloin"},{"id":"p_chops","region":"p_loin","names":{"en":"Chops / Cutlets","us":"Loin Chops / Rib Chops","fr":"Côtelettes","de":"Kotelett","ch":"Koteletts (Rippli)","it":"Braciole / Costolette","es":"Chuletas"},"note":"Bone-in loin chops. Grill or fry; the Swiss smoke loin as Rippli.","zone":"loin"},{"id":"p_babyback","region":"p_loin","names":{"en":"Baby Back Ribs","us":"Baby Back Ribs","fr":"Travers du carré","de":"Schälrippchen / Baby-Back-Rippen","ch":"Rückenrippli","it":"Costine della lonza","es":"Costillar de lomo"},"note":"Short, lean ribs from along the backbone. Barbecue, roast.","zone":"babyback"},{"id":"p_belly","region":"p_belly","names":{"en":"Belly","us":"Side / Belly","fr":"Poitrine","de":"Bauch","ch":"Brust (Brustspitz)","it":"Pancetta","es":"Panceta / Tocino"},"note":"Fatty underside. Bacon, pancetta, slow roasts, crackling. Brustspitz grilled in Switzerland.","zone":"belly"},{"id":"p_spareribs","region":"p_belly","names":{"en":"Spare Ribs","us":"Spare Ribs / St. Louis Ribs","fr":"Travers de porc","de":"Spareribs / Bauchrippen","ch":"Rippli (Bauch)","it":"Costine / Puntine","es":"Costillas"},"note":"Meatier ribs from the belly. Low-and-slow barbecue, braise, roast.","zone":"spareribs"},{"id":"p_leg","region":"p_leg","names":{"en":"Leg / Ham","us":"Leg / Ham","fr":"Jambon / Cuisse","de":"Schinken / Keule","ch":"Stotzen / Huft (Eckstück, Nuss, Unterspälte)","it":"Coscia / Prosciutto","es":"Pierna / Jamón"},"note":"Back leg. Fresh roasts and steaks, or cured & dried into ham (prosciutto, jamón, Nussschinkli).","zone":"leg"},{"id":"p_hock","region":"p_hock","names":{"en":"Hock / Trotter","us":"Hock / Trotter","fr":"Jarret / Pied","de":"Haxe / Eisbein","ch":"Wädli / Haxe (Gnagi)","it":"Stinco / Zampone","es":"Codillo / Manita"},"note":"Lower leg and foot. Braised or roasted (Schweinshaxe / Eisbein); pickled as Gnagi; collagen for stock.","zone":"hock"}]};
+const MAPS={"beef":{"outline":"M58,150 C40,150 30,140 36,126 C44,108 70,112 88,112 L120,96 C150,82 200,80 250,82 L420,86 C452,88 478,104 486,128 C492,148 486,168 470,176 L470,196 C470,206 464,214 452,216 L444,216 L444,256 C444,266 432,266 432,256 L432,216 L410,216 L410,256 C410,266 398,266 398,256 L398,216 L178,216 L178,256 C178,266 166,266 166,256 L166,216 L144,216 L144,256 C144,266 132,266 132,256 L132,216 L130,214 C96,210 70,190 60,170 Z","feature":"M58,150 C46,156 42,170 50,180 C58,188 78,186 84,176","vb":"0 0 520 340","schemes":{"us":[{"id":"chuck","label":"Chuck","path":"M120,86 L232,86 L232,176 L120,176 Z","cx":176.0,"cy":131.0,"zones":["neck","shoulder"]},{"id":"rib","label":"Rib","path":"M232,86 L300,86 L300,176 L232,176 Z","cx":266.0,"cy":131.0,"zones":["rib"]},{"id":"sloin","label":"Short Loin","path":"M300,86 L360,86 L360,146 L300,146 Z","cx":330.0,"cy":116.0,"zones":["shortloin","tenderloin"]},{"id":"sir","label":"Sirloin","path":"M360,86 L400,86 L400,146 L360,146 Z","cx":380.0,"cy":116.0,"zones":["sirloin"]},{"id":"round","label":"Round","path":"M400,86 L470,86 L470,212 L400,212 Z","cx":435.0,"cy":149.0,"zones":["rump","round"]},{"id":"brisket","label":"Brisket","path":"M120,176 L232,176 L232,212 L120,212 Z","cx":176.0,"cy":194.0,"zones":["brisket"]},{"id":"plate","label":"Plate","path":"M232,176 L300,176 L300,212 L232,212 Z","cx":266.0,"cy":194.0,"zones":["foreplate"]},{"id":"flank","label":"Flank","path":"M300,146 L400,146 L400,212 L300,212 Z","cx":350.0,"cy":179.0,"zones":["flank"]},{"id":"fshank","label":"Shank","path":"M132,212 L162,212 L162,252 L132,252 Z","cx":147.0,"cy":232.0,"zones":["shank"]}],"uk":[{"id":"neck","label":"Neck & Clod","path":"M120,86 L186,86 L186,156 L120,156 Z","cx":153.0,"cy":121.0,"zones":["neck"]},{"id":"chuck","label":"Chuck & Blade","path":"M186,86 L232,86 L232,156 L186,156 Z","cx":209.0,"cy":121.0,"zones":["shoulder"]},{"id":"forerib","label":"Fore Rib","path":"M232,86 L300,86 L300,146 L232,146 Z","cx":266.0,"cy":116.0,"zones":["rib"]},{"id":"sir","label":"Sirloin","path":"M300,86 L370,86 L370,146 L300,146 Z","cx":335.0,"cy":116.0,"zones":["shortloin","tenderloin"]},{"id":"rump","label":"Rump","path":"M370,86 L412,86 L412,146 L370,146 Z","cx":391.0,"cy":116.0,"zones":["sirloin"]},{"id":"round","label":"Topside / Silverside","path":"M412,86 L470,86 L470,176 L412,176 Z","cx":441.0,"cy":131.0,"zones":["rump","round"]},{"id":"thickrib","label":"Thick Rib","path":"M186,156 L232,156 L232,212 L186,212 Z","cx":209.0,"cy":184.0,"zones":["shoulder"]},{"id":"thinrib","label":"Thin Rib","path":"M232,146 L300,146 L300,176 L232,176 Z","cx":266.0,"cy":161.0,"zones":["foreplate"]},{"id":"brisket","label":"Brisket","path":"M120,156 L186,156 L186,212 L120,212 Z","cx":153.0,"cy":184.0,"zones":["brisket"]},{"id":"flank","label":"Flank","path":"M300,146 L412,146 L412,212 L300,212 Z","cx":356.0,"cy":179.0,"zones":["flank"]},{"id":"shin","label":"Shin","path":"M132,212 L162,212 L162,252 L132,252 Z","cx":147.0,"cy":232.0,"zones":["shank"]},{"id":"leg","label":"Leg","path":"M430,176 L470,176 L470,212 L430,212 Z","cx":450.0,"cy":194.0,"zones":["shank"]}],"fr":[{"id":"collier","label":"Collier","path":"M120,86 L186,86 L186,156 L120,156 Z","cx":153.0,"cy":121.0,"zones":["neck"]},{"id":"paleron","label":"Paleron / Macreuse","path":"M186,86 L232,86 L232,156 L186,156 Z","cx":209.0,"cy":121.0,"zones":["shoulder"]},{"id":"cotes","label":"Côtes / Entrecôte","path":"M232,86 L300,86 L300,146 L232,146 Z","cx":266.0,"cy":116.0,"zones":["rib"]},{"id":"filet","label":"Faux-filet / Filet","path":"M300,86 L370,86 L370,146 L300,146 Z","cx":335.0,"cy":116.0,"zones":["shortloin","tenderloin"]},{"id":"rum","label":"Rumsteck","path":"M370,86 L412,86 L412,146 L370,146 Z","cx":391.0,"cy":116.0,"zones":["sirloin"]},{"id":"tranche","label":"Tranche / Gîte à la noix","path":"M412,86 L470,86 L470,176 L412,176 Z","cx":441.0,"cy":131.0,"zones":["rump","round"]},{"id":"paleron2","label":"Jumeau","path":"M186,156 L232,156 L232,212 L186,212 Z","cx":209.0,"cy":184.0,"zones":["shoulder"]},{"id":"platcotes","label":"Plat de côtes","path":"M232,146 L300,146 L300,176 L232,176 Z","cx":266.0,"cy":161.0,"zones":["foreplate"]},{"id":"poitrine","label":"Poitrine","path":"M120,156 L186,156 L186,212 L120,212 Z","cx":153.0,"cy":184.0,"zones":["brisket"]},{"id":"bavette","label":"Bavette","path":"M300,146 L412,146 L412,212 L300,212 Z","cx":356.0,"cy":179.0,"zones":["flank"]},{"id":"gite","label":"Gîte / Jarret","path":"M132,212 L162,212 L162,252 L132,252 Z","cx":147.0,"cy":232.0,"zones":["shank"]},{"id":"gitenoix","label":"Gîte arrière","path":"M430,176 L470,176 L470,212 L430,212 Z","cx":450.0,"cy":194.0,"zones":["shank"]}],"dech":[{"id":"hals","label":"Hals","path":"M120,86 L186,86 L186,156 L120,156 Z","cx":153.0,"cy":121.0,"zones":["neck"]},{"id":"bug","label":"Schulter / Bug","path":"M186,86 L232,86 L232,156 L186,156 Z","cx":209.0,"cy":121.0,"zones":["shoulder"]},{"id":"hochrippe","label":"Hohrücken / Hochrippe","path":"M232,86 L300,86 L300,146 L232,146 Z","cx":266.0,"cy":116.0,"zones":["rib"]},{"id":"roastbeef","label":"Nierstück / Roastbeef","path":"M300,86 L346,86 L346,146 L300,146 Z","cx":323.0,"cy":116.0,"zones":["shortloin"]},{"id":"filet","label":"Filet","path":"M346,86 L370,86 L370,146 L346,146 Z","cx":358.0,"cy":116.0,"zones":["tenderloin"]},{"id":"huft","label":"Huft / Hüfte","path":"M370,86 L412,86 L412,146 L370,146 Z","cx":391.0,"cy":116.0,"zones":["sirloin"]},{"id":"tafelspitz","label":"Stotzen / Tafelspitz","path":"M412,86 L470,86 L470,176 L412,176 Z","cx":441.0,"cy":131.0,"zones":["rump","round"]},{"id":"dickeschulter","label":"Dicke Schulter","path":"M186,156 L232,156 L232,212 L186,212 Z","cx":209.0,"cy":184.0,"zones":["shoulder"]},{"id":"querrippe","label":"Federstück / Querrippe","path":"M232,146 L300,146 L300,176 L232,176 Z","cx":266.0,"cy":161.0,"zones":["foreplate"]},{"id":"brust","label":"Brust","path":"M120,156 L186,156 L186,212 L120,212 Z","cx":153.0,"cy":184.0,"zones":["brisket"]},{"id":"lempen","label":"Lempen / Flanke","path":"M300,146 L412,146 L412,212 L300,212 Z","cx":356.0,"cy":179.0,"zones":["flank"]},{"id":"hesse","label":"Schenkel / Hesse","path":"M132,212 L162,212 L162,252 L132,252 Z","cx":147.0,"cy":232.0,"zones":["shank"]},{"id":"hesse2","label":"Hesse hinten","path":"M430,176 L470,176 L470,212 L430,212 Z","cx":450.0,"cy":194.0,"zones":["shank"]}],"it":[{"id":"collo","label":"Collo","path":"M120,86 L186,86 L186,156 L120,156 Z","cx":153.0,"cy":121.0,"zones":["neck"]},{"id":"spalla","label":"Spalla / Reale","path":"M186,86 L232,86 L232,156 L186,156 Z","cx":209.0,"cy":121.0,"zones":["shoulder"]},{"id":"costata","label":"Costata","path":"M232,86 L300,86 L300,146 L232,146 Z","cx":266.0,"cy":116.0,"zones":["rib"]},{"id":"lombata","label":"Lombata / Controfiletto","path":"M300,86 L346,86 L346,146 L300,146 Z","cx":323.0,"cy":116.0,"zones":["shortloin"]},{"id":"filetto","label":"Filetto","path":"M346,86 L370,86 L370,146 L346,146 Z","cx":358.0,"cy":116.0,"zones":["tenderloin"]},{"id":"scamone","label":"Scamone","path":"M370,86 L412,86 L412,146 L370,146 Z","cx":391.0,"cy":116.0,"zones":["sirloin"]},{"id":"fesa","label":"Fesa / Noce / Girello","path":"M412,86 L470,86 L470,176 L412,176 Z","cx":441.0,"cy":131.0,"zones":["rump","round"]},{"id":"brione","label":"Brione","path":"M186,156 L232,156 L232,212 L186,212 Z","cx":209.0,"cy":184.0,"zones":["shoulder"]},{"id":"biancostato","label":"Biancostato","path":"M232,146 L300,146 L300,176 L232,176 Z","cx":266.0,"cy":161.0,"zones":["foreplate"]},{"id":"petto","label":"Punta di petto","path":"M120,156 L186,156 L186,212 L120,212 Z","cx":153.0,"cy":184.0,"zones":["brisket"]},{"id":"pancia","label":"Pancia / Fianchetto","path":"M300,146 L412,146 L412,212 L300,212 Z","cx":356.0,"cy":179.0,"zones":["flank"]},{"id":"geretto","label":"Geretto / Ossobuco","path":"M132,212 L162,212 L162,252 L132,252 Z","cx":147.0,"cy":232.0,"zones":["shank"]},{"id":"geretto2","label":"Ossobuco post.","path":"M430,176 L470,176 L470,212 L430,212 Z","cx":450.0,"cy":194.0,"zones":["shank"]}],"es":[{"id":"pescuezo","label":"Pescuezo / Aguja","path":"M120,86 L186,86 L186,156 L120,156 Z","cx":153.0,"cy":121.0,"zones":["neck"]},{"id":"espaldilla","label":"Espaldilla","path":"M186,86 L232,86 L232,156 L186,156 Z","cx":209.0,"cy":121.0,"zones":["shoulder"]},{"id":"lomoalto","label":"Lomo alto","path":"M232,86 L300,86 L300,146 L232,146 Z","cx":266.0,"cy":116.0,"zones":["rib"]},{"id":"lomobajo","label":"Lomo bajo","path":"M300,86 L346,86 L346,146 L300,146 Z","cx":323.0,"cy":116.0,"zones":["shortloin"]},{"id":"solomillo","label":"Solomillo","path":"M346,86 L370,86 L370,146 L346,146 Z","cx":358.0,"cy":116.0,"zones":["tenderloin"]},{"id":"cadera","label":"Cadera","path":"M370,86 L412,86 L412,146 L370,146 Z","cx":391.0,"cy":116.0,"zones":["sirloin"]},{"id":"tapa","label":"Tapa / Contra / Babilla","path":"M412,86 L470,86 L470,176 L412,176 Z","cx":441.0,"cy":131.0,"zones":["rump","round"]},{"id":"aguja2","label":"Llana","path":"M186,156 L232,156 L232,212 L186,212 Z","cx":209.0,"cy":184.0,"zones":["shoulder"]},{"id":"costillar","label":"Costillar","path":"M232,146 L300,146 L300,176 L232,176 Z","cx":266.0,"cy":161.0,"zones":["foreplate"]},{"id":"pecho","label":"Pecho","path":"M120,156 L186,156 L186,212 L120,212 Z","cx":153.0,"cy":184.0,"zones":["brisket"]},{"id":"falda","label":"Falda","path":"M300,146 L412,146 L412,212 L300,212 Z","cx":356.0,"cy":179.0,"zones":["flank"]},{"id":"morcillo","label":"Morcillo","path":"M132,212 L162,212 L162,252 L132,252 Z","cx":147.0,"cy":232.0,"zones":["shank"]},{"id":"morcillo2","label":"Morcillo tras.","path":"M430,176 L470,176 L470,212 L430,212 Z","cx":450.0,"cy":194.0,"zones":["shank"]}]}},"pork":{"outline":"M70,150 C52,146 42,156 44,140 C46,120 64,110 86,110 C92,96 104,92 112,100 C140,86 200,84 250,86 L430,92 C460,96 484,116 486,140 C488,160 478,176 460,180 L456,182 L452,182 L452,222 C452,232 440,232 440,222 L440,182 L412,182 L412,222 C412,232 400,232 400,222 L400,182 L170,182 L170,222 C170,232 158,232 158,222 L158,182 L142,182 L142,222 C142,232 130,232 130,222 L130,182 L128,180 C100,176 78,166 70,150 Z","feature":"M70,150 C56,150 48,138 52,128 M86,110 C92,98 104,94 110,102","vb":"0 0 520 320","schemes":{"us":[{"id":"head","label":"Jowl","path":"M86,110 L160,110 L160,180 L86,180 Z","cx":123.0,"cy":145.0,"zones":["head","jowl"]},{"id":"shoulder","label":"Boston Butt / Blade","path":"M112,90 L210,90 L210,150 L112,150 Z","cx":161.0,"cy":120.0,"zones":["neckcollar","shoulder"]},{"id":"loin","label":"Loin","path":"M210,90 L360,90 L360,150 L210,150 Z","cx":285.0,"cy":120.0,"zones":["loin","tenderloin","babyback"]},{"id":"belly","label":"Side / Belly","path":"M210,150 L360,150 L360,180 L210,180 Z","cx":285.0,"cy":165.0,"zones":["belly","spareribs"]},{"id":"leg","label":"Leg / Ham","path":"M360,90 L460,90 L460,180 L360,180 Z","cx":410.0,"cy":135.0,"zones":["leg"]},{"id":"hock","label":"Hock / Trotter","path":"M392,180 L460,180 L460,210 L392,210 Z","cx":426.0,"cy":195.0,"zones":["hock"]}],"uk":[{"id":"head","label":"Head","path":"M86,110 L160,110 L160,180 L86,180 Z","cx":123.0,"cy":145.0,"zones":["head","jowl"]},{"id":"shoulder","label":"Spare Rib / Shoulder","path":"M112,90 L210,90 L210,150 L112,150 Z","cx":161.0,"cy":120.0,"zones":["neckcollar","shoulder"]},{"id":"loin","label":"Loin","path":"M210,90 L360,90 L360,150 L210,150 Z","cx":285.0,"cy":120.0,"zones":["loin","tenderloin","babyback"]},{"id":"belly","label":"Belly","path":"M210,150 L360,150 L360,180 L210,180 Z","cx":285.0,"cy":165.0,"zones":["belly","spareribs"]},{"id":"leg","label":"Leg","path":"M360,90 L460,90 L460,180 L360,180 Z","cx":410.0,"cy":135.0,"zones":["leg"]},{"id":"hock","label":"Hock / Trotter","path":"M392,180 L460,180 L460,210 L392,210 Z","cx":426.0,"cy":195.0,"zones":["hock"]}],"fr":[{"id":"head","label":"Tête","path":"M86,110 L160,110 L160,180 L86,180 Z","cx":123.0,"cy":145.0,"zones":["head","jowl"]},{"id":"shoulder","label":"Échine / Épaule","path":"M112,90 L210,90 L210,150 L112,150 Z","cx":161.0,"cy":120.0,"zones":["neckcollar","shoulder"]},{"id":"loin","label":"Longe / Carré","path":"M210,90 L360,90 L360,150 L210,150 Z","cx":285.0,"cy":120.0,"zones":["loin","tenderloin","babyback"]},{"id":"belly","label":"Poitrine","path":"M210,150 L360,150 L360,180 L210,180 Z","cx":285.0,"cy":165.0,"zones":["belly","spareribs"]},{"id":"leg","label":"Jambon","path":"M360,90 L460,90 L460,180 L360,180 Z","cx":410.0,"cy":135.0,"zones":["leg"]},{"id":"hock","label":"Jarret / Pied","path":"M392,180 L460,180 L460,210 L392,210 Z","cx":426.0,"cy":195.0,"zones":["hock"]}],"dech":[{"id":"head","label":"Kopf","path":"M86,110 L160,110 L160,180 L86,180 Z","cx":123.0,"cy":145.0,"zones":["head","jowl"]},{"id":"shoulder","label":"Hals / Schulter","path":"M112,90 L210,90 L210,150 L112,150 Z","cx":161.0,"cy":120.0,"zones":["neckcollar","shoulder"]},{"id":"loin","label":"Nierstück / Rücken","path":"M210,90 L360,90 L360,150 L210,150 Z","cx":285.0,"cy":120.0,"zones":["loin","tenderloin","babyback"]},{"id":"belly","label":"Bauch","path":"M210,150 L360,150 L360,180 L210,180 Z","cx":285.0,"cy":165.0,"zones":["belly","spareribs"]},{"id":"leg","label":"Stotzen / Schinken","path":"M360,90 L460,90 L460,180 L360,180 Z","cx":410.0,"cy":135.0,"zones":["leg"]},{"id":"hock","label":"Wädli / Haxe","path":"M392,180 L460,180 L460,210 L392,210 Z","cx":426.0,"cy":195.0,"zones":["hock"]}],"it":[{"id":"head","label":"Testa","path":"M86,110 L160,110 L160,180 L86,180 Z","cx":123.0,"cy":145.0,"zones":["head","jowl"]},{"id":"shoulder","label":"Coppa / Spalla","path":"M112,90 L210,90 L210,150 L112,150 Z","cx":161.0,"cy":120.0,"zones":["neckcollar","shoulder"]},{"id":"loin","label":"Lombo / Lonza","path":"M210,90 L360,90 L360,150 L210,150 Z","cx":285.0,"cy":120.0,"zones":["loin","tenderloin","babyback"]},{"id":"belly","label":"Pancetta","path":"M210,150 L360,150 L360,180 L210,180 Z","cx":285.0,"cy":165.0,"zones":["belly","spareribs"]},{"id":"leg","label":"Coscia / Prosciutto","path":"M360,90 L460,90 L460,180 L360,180 Z","cx":410.0,"cy":135.0,"zones":["leg"]},{"id":"hock","label":"Stinco","path":"M392,180 L460,180 L460,210 L392,210 Z","cx":426.0,"cy":195.0,"zones":["hock"]}],"es":[{"id":"head","label":"Cabeza","path":"M86,110 L160,110 L160,180 L86,180 Z","cx":123.0,"cy":145.0,"zones":["head","jowl"]},{"id":"shoulder","label":"Aguja / Paleta","path":"M112,90 L210,90 L210,150 L112,150 Z","cx":161.0,"cy":120.0,"zones":["neckcollar","shoulder"]},{"id":"loin","label":"Lomo","path":"M210,90 L360,90 L360,150 L210,150 Z","cx":285.0,"cy":120.0,"zones":["loin","tenderloin","babyback"]},{"id":"belly","label":"Panceta","path":"M210,150 L360,150 L360,180 L210,180 Z","cx":285.0,"cy":165.0,"zones":["belly","spareribs"]},{"id":"leg","label":"Pierna / Jamón","path":"M360,90 L460,90 L460,180 L360,180 Z","cx":410.0,"cy":135.0,"zones":["leg"]},{"id":"hock","label":"Codillo","path":"M392,180 L460,180 L460,210 L392,210 Z","cx":426.0,"cy":195.0,"zones":["hock"]}]}}};
+let animal="beef", curLang="", scheme="us", regionFilter=null; // regionFilter = region id
+const $=s=>document.querySelector(s);
+const tip=$("#tip");
+
+function esc(s){return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function hl(s,q){if(!q)return esc(s);const i=s.toLowerCase().indexOf(q.toLowerCase());if(i<0)return esc(s);return esc(s.slice(0,i))+"<mark>"+esc(s.slice(i,i+q.length))+"</mark>"+esc(s.slice(i+q.length));}
+function cutMatches(c,q){if(!q)return null;q=q.toLowerCase();for(const L of LANGS){const v=c.names[L.k];if(v&&v.toLowerCase().includes(q))return [L.k,v];}return false;}
+function primaryName(c){if(curLang&&c.names[curLang])return{k:curLang,v:c.names[curLang]};return{k:"en",v:c.names.en};}
+
+// region for a cut under the current scheme
+function regionForZone(zone){
+  const regs=MAPS[animal].schemes[scheme];
+  return regs.find(r=>r.zones.includes(zone));
+}
+
+function shorten(label){
+  // first variant before " / " for the on-map label; full label kept for tooltip
+  return label.split(" / ")[0];
+}
+
+function renderMap(){
+  const m=MAPS[animal];
+  const regs=m.schemes[scheme];
+  let svg=`<svg viewBox="${m.vb}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${SCHEME_NAME[scheme]} ${animal} primal cuts">`;
+  // regions
+  for(const r of regs){
+    svg+=`<path class="region" data-region="${r.id}" data-label="${esc(r.label)}" d="${r.path}"></path>`;
+  }
+  // outline + feature on top
+  svg+=`<path class="outline" d="${m.outline}"></path>`;
+  svg+=`<path class="feature" d="${m.feature}"></path>`;
+  // labels
+  for(const r of regs){
+    svg+=`<text class="rlabel" x="${r.cx}" y="${r.cy}" data-for="${r.id}">${esc(shorten(r.label))}</text>`;
+  }
+  svg+=`</svg>`;
+  $("#mapwrap").innerHTML=svg;
+  $("#schemeflag").innerHTML=`<span class="fl">${SCHEME_FLAG[scheme]}</span> ${SCHEME_NAME[scheme]} scheme`;
+  $("#mapcap").textContent = `Side of ${animal} · tap a primal cut`;
+  // wire regions
+  document.querySelectorAll(".region").forEach(el=>{
+    el.addEventListener("click",()=>{
+      const id=el.getAttribute("data-region");
+      regionFilter=(regionFilter===id)?null:id;
+      syncMap(); renderList();
+    });
+    el.addEventListener("mousemove",e=>{
+      tip.textContent=el.getAttribute("data-label");
+      tip.style.display="block"; tip.style.left=(e.clientX+12)+"px"; tip.style.top=(e.clientY+12)+"px";
+    });
+    el.addEventListener("mouseleave",()=>{tip.style.display="none"});
+  });
+  syncMap();
+}
+function syncMap(){
+  document.querySelectorAll(".region").forEach(el=>{
+    const id=el.getAttribute("data-region");
+    el.classList.toggle("active",regionFilter===id);
+    el.classList.toggle("dim",regionFilter&&regionFilter!==id);
+  });
+  document.querySelectorAll(".rlabel").forEach(t=>{
+    t.classList.toggle("light",regionFilter===t.getAttribute("data-for"));
+  });
+}
+
+function renderList(){
+  const q=$("#q").value.trim();
+  const ul=$("#cuts"); ul.innerHTML=""; let shown=0;
+  // which zones are in the filtered region
+  let allowZones=null;
+  if(regionFilter){
+    const reg=MAPS[animal].schemes[scheme].find(r=>r.id===regionFilter);
+    allowZones=reg?reg.zones:[];
+  }
+  for(const c of DATA[animal]){
+    if(allowZones && !allowZones.includes(c.zone)) continue;
+    let hit=null;
+    if(q){hit=cutMatches(c,q);if(hit===false)continue;}
+    shown++;
+    const pn=primaryName(c);
+    const reg=regionForZone(c.zone);
+    const others=[...new Set(LANGS.filter(L=>L.k!==pn.k&&c.names[L.k]).map(L=>c.names[L.k]))];
+    const li=document.createElement("li");li.className="cut";
+    li.innerHTML=`<div><div class="primary-name">${hl(pn.v,q&&hit?q:"")}</div>
+      <div class="alt-name">${others.map(o=>hl(o,q&&hit?q:"")).join(" · ")}</div></div>
+      <span class="region-tag">${reg?esc(shorten(reg.label)):esc(c.zone)}</span>`;
+    li.addEventListener("click",()=>openSheet(c));
+    li.addEventListener("mouseenter",()=>hoverRegion(c.zone,true));
+    li.addEventListener("mouseleave",()=>hoverRegion(c.zone,false));
+    ul.appendChild(li);
+  }
+  $("#empty").style.display=shown?"none":"block";
+  $("#listcount").textContent=shown+" cut"+(shown===1?"":"s");
+  let title="All "+animal+" cuts";
+  if(regionFilter){const reg=MAPS[animal].schemes[scheme].find(r=>r.id===regionFilter);title=reg?reg.label:title;}
+  $("#listtitle").textContent=title;
+  $("#filterbar").style.display=regionFilter?"block":"none";
+}
+function hoverRegion(zone,on){
+  if(regionFilter)return;
+  const reg=regionForZone(zone);if(!reg)return;
+  const el=document.querySelector(`.region[data-region="${reg.id}"]`);
+  if(el)el.style.fill=on?"var(--tallow)":"";
+}
+
+function openSheet(c){
+  const reg=regionForZone(c.zone);
+  const rows=LANGS.map(L=>{
+    if(!c.names[L.k])return"";
+    const hiCls=(L.k===curLang)?" hi":"";
+    return `<div class="langrow${hiCls}"><div class="l"><span class="flag">${L.flag}</span>${L.label}</div><div class="v">${esc(c.names[L.k])}</div></div>`;
+  }).join("");
+  $("#sheet").innerHTML=`<div class="sheet-top">
+      <div class="rtag">${animal} · ${reg?esc(reg.label):esc(c.zone)} · ${SCHEME_NAME[scheme]} scheme</div>
+      <h3>${esc(c.names.en)}</h3>
+      <button class="closebtn" aria-label="Close">×</button></div>
+    <div class="note">${esc(c.note)}</div>
+    <div class="langtable">${rows}</div>`;
+  $("#sheet").querySelector(".closebtn").addEventListener("click",closeSheet);
+  regionFilter=null;syncMap();
+  if(reg){const el=document.querySelector(`.region[data-region="${reg.id}"]`);
+    if(el){el.classList.add("active");document.querySelectorAll(`.region:not([data-region="${reg.id}"])`).forEach(r=>r.classList.add("dim"));}}
+  $("#scrim").classList.add("open");document.body.style.overflow="hidden";
+}
+function closeSheet(){$("#scrim").classList.remove("open");document.body.style.overflow="";syncMap()}
+$("#scrim").addEventListener("click",e=>{if(e.target===$("#scrim"))closeSheet()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet()});
+
+document.querySelectorAll("#animalseg button").forEach(b=>{
+  b.addEventListener("click",()=>{
+    document.querySelectorAll("#animalseg button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");animal=b.getAttribute("data-animal");regionFilter=null;
+    renderMap();renderList();
+  });
+});
+$("#q").addEventListener("input",renderList);
+$("#clearfilter").addEventListener("click",()=>{regionFilter=null;syncMap();renderList()});
+
+const sel=$("#lang");
+sel.innerHTML='<option value="">Map &amp; names: American (default)</option>'+
+  LANGS.map(L=>`<option value="${L.k}">Map &amp; names: ${L.label}</option>`).join("");
+sel.addEventListener("change",e=>{
+  curLang=e.target.value;
+  const L=LANGS.find(x=>x.k===curLang);
+  scheme=L?L.scheme:"us";
+  regionFilter=null;
+  renderMap();renderList();
+});
+
+$("#m-cuts").textContent=DATA.beef.length+DATA.pork.length;
+renderMap();renderList();
+</script>
+</body>
+</html>
